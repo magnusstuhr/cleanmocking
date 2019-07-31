@@ -2,6 +2,7 @@
 using CleanMocking.Model;
 using CleanMocking.Repositories;
 using CleanMocking.Services;
+using CleanMockingTests.Mocks;
 using Moq;
 using Xunit;
 
@@ -15,18 +16,16 @@ namespace CleanMockingTests.Services
             // Arrange
             var customerToAdd = CreateRandomCustomer();
 
-            var customerRepositoryMock = new Mock<ICustomerRepository>();
-            customerRepositoryMock.Setup(repository => repository.Add(customerToAdd)).ReturnsAsync(customerToAdd);
+            var customerRepositoryMock = new CustomerRepositoryMock();
+            customerRepositoryMock.SetupAddReturns(customerToAdd);
 
-            var customerRepository = customerRepositoryMock.Object;
-            var customerService = new CustomerService(customerRepository);
+            var customerService = CreateCustomerService(customerRepositoryMock);
 
             // Act
             await customerService.Add(customerToAdd);
 
             // Assert
-            customerRepositoryMock.Verify(repository => repository.Add(customerToAdd), Times.Once());
-            customerRepositoryMock.VerifyNoOtherCalls();
+            customerRepositoryMock.VerifyOnlyAddWasCalledOnce(customerToAdd);
         }
 
         [Fact]
@@ -34,22 +33,32 @@ namespace CleanMockingTests.Services
         {
             // Arrange
             Customer customerToAdd = null;
+            const string expectedExceptionMessage = "An error occurred when trying to add the customer.";
 
-            var customerRepositoryMock = new Mock<ICustomerRepository>();
-            customerRepositoryMock.Setup(repository => repository.Add(customerToAdd)).ReturnsAsync(customerToAdd);
+            var customerRepositoryMock = new CustomerRepositoryMock();
+            customerRepositoryMock.SetupAddReturns(customerToAdd);
 
-            var customerRepository = customerRepositoryMock.Object;
-            var customerService = new CustomerService(customerRepository);
+            var customerService = CreateCustomerService(customerRepositoryMock);
 
             // Act
             var exception = await Record.ExceptionAsync(() => customerService.Add(customerToAdd));
 
             // Assert
-            Assert.IsType<Exception>(exception);
-            var exceptionMessage = exception.Message;
-            Assert.Equal("An error occurred when trying to add the customer.", exceptionMessage);
-            customerRepositoryMock.Verify(repository => repository.Add(customerToAdd), Times.Once());
-            customerRepositoryMock.VerifyNoOtherCalls();
+            VerifyException<Exception>(exception, expectedExceptionMessage);
+            customerRepositoryMock.VerifyOnlyAddWasCalledOnce(customerToAdd);
+        }
+
+        private static void VerifyException<T>(Exception exceptionToVerify, string expectedExceptionMessage)
+            where T : Exception
+        {
+            Assert.IsType<T>(exceptionToVerify);
+            var exceptionMessage = exceptionToVerify.Message;
+            Assert.Equal(expectedExceptionMessage, exceptionMessage);
+        }
+
+        private static CustomerService CreateCustomerService(IMock<ICustomerRepository> customerRepositoryMock)
+        {
+            return new CustomerService(customerRepositoryMock.Object);
         }
 
         private static Customer CreateRandomCustomer()
