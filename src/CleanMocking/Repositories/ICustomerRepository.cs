@@ -5,7 +5,7 @@ namespace CleanMocking.Repositories
 {
     public interface ICustomerRepository
     {
-        Task Add(Customer customer);
+        Task<Customer> Add(Customer customer);
 
         Task<Customer> Get();
 
